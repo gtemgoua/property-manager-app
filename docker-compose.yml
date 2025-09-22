@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: property_manager
+      POSTGRES_USER: property
+      POSTGRES_PASSWORD: propertypass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - property_net
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "property"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend/PropertyManager.Api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=property_manager;Username=property;Password=propertypass
+      HTTP_PORTS: ""
+      HTTPS_PORTS: ""
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - property_net
+    ports:
+      - "8080:8080"
+
+  client:
+    build:
+      context: ./client
+    depends_on:
+      - api
+    networks:
+      - property_net
+    ports:
+      - "5173:80"
+
+networks:
+  property_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
